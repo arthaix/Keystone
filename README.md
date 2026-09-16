@@ -91,6 +91,11 @@ for LittleTiles, Chisels & Bits, UniversalModCore and OnlinePictureFrame only wh
   digits, `_`, `-` or `.` (for example `miszkolights&signs`) showed the missing texture on all its items: VintageFix's
   texture scan does not accept such names. Keystone reads those items' models before the atlas is built and adds
   their icons itself.
+- **Immersive Vehicles lit the same in every frame.** Immersive Vehicles draws vehicles, signs and poles at the end of
+  the frame and turns lighting on through Minecraft's GL state cache. Mods that change GL state directly at that point
+  (selection outlines, waypoint beams) left the cache wrong while they had something in view, and signs and poles
+  flipped between shaded and flat bright as the camera moved. The GL state is now reset to match the cache before
+  Immersive Vehicles draws.
 - **Immersive Railroading stays in sight.** A dedicated server sends entities to a player only within its
   view-distance (80 blocks at 6) and only in chunks the player watches, so trains vanished as soon as you moved away,
   and rails disappeared with their chunks. Trains and other UniversalModCore entities are now sent to each player up to

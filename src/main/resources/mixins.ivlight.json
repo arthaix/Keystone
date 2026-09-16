@@ -1,0 +1,9 @@
+{
+  "package": "ru.arthaix.keystone.ivlight.mixin",
+  "minVersion": "0.8",
+  "compatibilityLevel": "JAVA_8",
+  "required": false,
+  "setSourceFile": true,
+  "client": [ "MixinVehicleWorldLast" ],
+  "mixins": [ ]
+}
