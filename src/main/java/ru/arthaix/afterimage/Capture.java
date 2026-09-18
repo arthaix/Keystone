@@ -287,10 +287,21 @@ public final class Capture {
 
             long t = System.nanoTime();
             int vs = v.afterimage$vertexSize();
+            // With a shader pack loaded the game builds wider vertices (OptiFine's layout). The fingerprint and the disk
+            // cache use the vanilla part of them, so both stay the same whether a pack is loaded or not.
+            ByteBuffer plain = null;
+            int plainSize = 0;
+            if (vs == VertexLayout.VANILLA) {
+                plain = buf;
+                plainSize = size;
+            } else if (vs > VertexLayout.VANILLA && size % vs == 0) {
+                plain = vanillaPart(buf, size, vs);
+                plainSize = plain == null ? 0 : plain.remaining();
+            }
             long[] h = takeWorkerHash(buf, size, vs);
             long now = System.nanoTime();
             if (h == null) {
-                h = Hash.of(buf, vs);
+                h = plain == null ? new long[] {0L, 0L} : Hash.of(plain, VertexLayout.VANILLA);
                 now = System.nanoTime();
                 hashNanos += now - t;
                 mainHashed++;
@@ -300,11 +311,11 @@ public final class Capture {
             if (VERIFY) {
                 sample(vb, buf, key, layer, size, vs, now);
             }
-            if (layer < 4 && vs == 28) {
+            if (layer < 4 && plain != null && plainSize > 0) {
                 net.minecraft.client.multiplayer.WorldClient cw = Minecraft.func_71410_x().field_71441_e;
                 long wt = cw == null ? 0L : cw.func_82737_E();
                 Far.onUpload(key, layer, h[1], wt);
-                Disk.onSectionUpload(rc, key, layer, buf, size, h[0], h[1], wt);
+                Disk.onSectionUpload(rc, key, layer, plain, plainSize, h[0], h[1], wt);
             }
             Rec r = SECTIONS.get(key);
             if (r == null) {
@@ -439,6 +450,29 @@ public final class Capture {
             fail("onChat", t);
         }
         return true;
+    }
+
+    // main thread only: the vanilla part of a pack's vertices, for the fingerprint and the disk cache
+    private static byte[] plainBytes = new byte[1 << 20];
+    private static ByteBuffer plainBuf;
+
+    private static ByteBuffer vanillaPart(ByteBuffer buf, int size, int vs) {
+        int vertices = size / vs;
+        int need = vertices * VertexLayout.VANILLA;
+        if (need <= 0) {
+            return null;
+        }
+        if (plainBytes.length < need) {
+            plainBytes = new byte[need + (need >> 2)];
+            plainBuf = null;
+        }
+        int wrote = VertexLayout.strip(buf, buf.position(), size, vs, plainBytes);
+        if (plainBuf == null || plainBuf.array() != plainBytes) {
+            plainBuf = ByteBuffer.wrap(plainBytes).order(java.nio.ByteOrder.nativeOrder());
+        }
+        plainBuf.clear();
+        plainBuf.limit(wrote);
+        return plainBuf;
     }
 
     /** Fingerprint of the last upload of that section layer if its size matches, else 0 (unknown). */

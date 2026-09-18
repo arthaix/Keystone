@@ -133,6 +133,11 @@ everything you have seen is back the moment you rejoin.
 - **No copies in the driver**: a section leaving the view keeps its own GL buffer as its copy. Otherwise geometry is
   duplicated with `glCopyBufferSubData` at the moment vanilla would lose it, with no readback to the CPU and no GL
   queries that would stall on the driver. Upload fingerprints are computed on the chunk workers.
+- **Shader packs**: with an OptiFine shader pack loaded the game builds wider vertices (normal, mid texture coordinate,
+  tangent and block id next to the vanilla fields). The far zone follows: copies are taken and drawn in that layout,
+  through the pack's own terrain program, so a pack lights the far zone like the terrain in front of it. The disk cache
+  stays in the vanilla layout, so one cache serves both: what a pack built is written without its extra fields, and what
+  is read gets them back, worked out from the quad itself. Switching a pack on or off starts the copies in memory over.
 - **Persistent**: sections are written to a per-server, per-dimension cache in the background (deflate, atomic writes,
   newer versions supersede queued older ones). On join the cache is restored nearest-first, uploaded to the GPU for at
   most 4 ms per frame.

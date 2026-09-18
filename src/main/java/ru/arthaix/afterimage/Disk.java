@@ -66,7 +66,6 @@ public final class Disk {
     private static final int MAGIC = 0x41494D47;
     /** 2 adds the geometry tick; version 1 files are still read (tick unknown). */
     private static final int VERSION = 2;
-    private static final int VS = 28;
     private static final long DELETE_GRACE = 30_000_000_000L;
     private static final long WRITE_BACKLOG_MAX = 1L << 30;
     private static final long READY_MAX = 512L << 20;
@@ -795,7 +794,7 @@ public final class Disk {
             BlockPos p = BlockPos.func_177969_a(j.key);
             ByteBuffer h = ByteBuffer.wrap(WRITE_HEADER);
             h.putInt(MAGIC).putInt(VERSION).putInt(j.layer).putInt(p.func_177958_n()).putInt(p.func_177956_o()).putInt(p.func_177952_p())
-                .putInt(VS).putInt(n).putLong(j.exact).putLong(j.ms).putLong(j.geomTime).putInt(outLen);
+                .putInt(VertexLayout.VANILLA).putInt(n).putLong(j.exact).putLong(j.ms).putLong(j.geomTime).putInt(outLen);
             File tmp = new File(f.getPath() + ".tmp");
             try (FileOutputStream out = new FileOutputStream(tmp)) {
                 out.write(WRITE_HEADER, 0, h.position());
@@ -836,6 +835,17 @@ public final class Disk {
             ERRORS.incrementAndGet();
             Capture.logError("disk.delete", t);
         }
+    }
+
+    /** A shader pack was switched on or off: forget what was found for the old layout and scan the cache again. */
+    public static void rescan() {
+        generation++;
+        ONDISK.clear();
+        ONDISK_TIME.clear();
+        LATEST.clear();
+        PENDING_DELETE.clear();
+        clearHeld();
+        scanPending = worldDir != null;
     }
 
     public static void clearWorld() {
@@ -1025,7 +1035,8 @@ public final class Disk {
             in.readLong();
             long geomTime = version >= 2 ? in.readLong() : 0L;
             int comp = in.readInt();
-            if (vs != VS || layer < 0 || layer > 3 || raw <= 0 || raw % (VS * 4) != 0 || comp <= 0) {
+            if (vs != VertexLayout.VANILLA || layer < 0 || layer > 3 || raw <= 0
+                    || raw % (VertexLayout.VANILLA * 4) != 0 || comp <= 0) {
                 return null;
             }
             return new Meta(f, new BlockPos(x, y, z).func_177986_g(), layer, x, y, z, raw, comp, geomTime, version >= 2 ? 60 : 52);
@@ -1079,13 +1090,14 @@ public final class Disk {
                 return null;
             }
             ByteBuffer h = ByteBuffer.wrap(READ_HEADER, 0, m.headerLen);
-            if (h.getInt() != MAGIC || h.getInt(4) != (m.headerLen == 60 ? 2 : 1) || h.getInt(8) != m.layer || h.getInt(24) != VS) {
+            if (h.getInt() != MAGIC || h.getInt(4) != (m.headerLen == 60 ? 2 : 1) || h.getInt(8) != m.layer
+                    || h.getInt(24) != VertexLayout.VANILLA) {
                 readError("header changed", m.file, null);
                 return null;
             }
             int raw = h.getInt(28);
             int comp = h.getInt(m.headerLen - 4);
-            if (raw <= 0 || raw % (VS * 4) != 0 || comp <= 0) {
+            if (raw <= 0 || raw % (VertexLayout.VANILLA * 4) != 0 || comp <= 0) {
                 discardCorrupt(m, "bad sizes " + raw + "/" + comp);
                 return null;
             }

@@ -205,6 +205,8 @@ public final class Far {
         long geomTime;
         long bytes;
         double dist2;
+        /** Bytes per vertex of these buffers: vanilla's layout, or OptiFine's while a shader pack is loaded. */
+        int stride = VS;
 
         Entry(long key, BlockPos p) {
             this(key, p.func_177958_n(), p.func_177956_o(), p.func_177952_p());
@@ -217,6 +219,12 @@ public final class Far {
             this.z = z;
         }
     }
+
+    /** A shader pack is drawing the world: copies are taken and drawn in OptiFine's vertex layout. */
+    private static boolean shaders;
+
+    /** Bytes per vertex of the copies taken now: VS without a shader pack, OptiFine's layout with one. */
+    private static int stride = VS;
 
     private static final HashMap<Long, Entry> ENTRIES = new HashMap<Long, Entry>(8192);
     /** Stale copies of sections vanilla shows, recaptured after the render loop (at most REFRESH_PER_FRAME per frame). */
@@ -422,7 +430,7 @@ public final class Far {
             }
             IAfterimageVbo v = (IAfterimageVbo) (Object) vb;
             int src = v.afterimage$glId();
-            if (src <= 0 || v.afterimage$vertexSize() != VS) {
+            if (src <= 0 || v.afterimage$vertexSize() != stride) {
                 continue;
             }
             int size;
@@ -430,7 +438,7 @@ public final class Far {
                 // Vanilla never draws these bytes again: keep the buffer itself as the copy and give the VertexBuffer a new,
                 // empty one. No allocation or copy in the driver, which stalled flights at every chunk border.
                 size = v.afterimage$lastSize();
-                if (size < VS * 4 || size % VS != 0) {
+                if (size < stride * 4 || size % stride != 0) {
                     continue;
                 }
                 int fresh = GL15.glGenBuffers();
@@ -449,7 +457,7 @@ public final class Far {
                 } else {
                     size = GL15.glGetBufferParameteri(GL31.GL_COPY_READ_BUFFER, GL15.GL_BUFFER_SIZE);
                 }
-                if (size < VS * 4 || size % VS != 0) {
+                if (size < stride * 4 || size % stride != 0) {
                     GL15.glBindBuffer(GL31.GL_COPY_READ_BUFFER, 0);
                     continue;
                 }
@@ -461,7 +469,7 @@ public final class Far {
                 GL15.glBindBuffer(GL31.GL_COPY_READ_BUFFER, 0);
                 ids[l] = dst;
             }
-            counts[l] = size / VS;
+            counts[l] = size / stride;
             hashes[l] = tracked ? Capture.layerHash(key, l, size) : 0L;
             if (hashes[l] == 0L) {
                 unknown = true;
@@ -477,6 +485,7 @@ public final class Far {
             return;
         }
         Entry e = new Entry(key, p);
+        e.stride = stride;
         System.arraycopy(ids, 0, e.ids, 0, LAYERS);
         System.arraycopy(counts, 0, e.counts, 0, LAYERS);
         System.arraycopy(hashes, 0, e.hash, 0, LAYERS);
@@ -557,9 +566,37 @@ public final class Far {
         return frame;
     }
 
+    /** Bytes per vertex of the copies taken now: the layout the game builds its sections in. */
+    public static int stride() {
+        return stride;
+    }
+
+    /** True while the copies are in OptiFine's shader layout (kept apart from the vanilla ones on disk). */
+    public static boolean shaderFormat() {
+        return shaders;
+    }
+
+    /**
+     * A shader pack was switched on or off. The copies in VRAM are in the other vertex layout and their bytes mean
+     * nothing to the programs drawing now, so they go; the cache of the new layout is read from disk instead.
+     */
+    private static void checkShaderPack() {
+        boolean now = ShaderPack.active();
+        if (now == shaders) {
+            return;
+        }
+        shaders = now;
+        stride = now ? ShaderPack.stride() : VS;
+        clearAll();
+        Disk.rescan();
+        Capture.logInfo("far: shader pack " + (now ? "on" : "off") + ", vertex layout " + stride
+                + " bytes, the far zone starts over");
+    }
+
     public static void render(BlockRenderLayer layer, double partialTicks, Entity viewer, ViewFrustum frustum) {
         if (layer == BlockRenderLayer.SOLID) {
             frame++;
+            checkShaderPack();
         }
         if (!ENABLED || layer != BlockRenderLayer.SOLID || viewer == null) {
             return;
@@ -680,7 +717,7 @@ public final class Far {
             return;
         }
 
-        boolean fog = fogEnd <= 0 && GL11.glIsEnabled(GL11.GL_FOG);
+        boolean fog = !shaders && fogEnd <= 0 && GL11.glIsEnabled(GL11.GL_FOG);
         boolean alpha = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
         boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
         GlStateManager.func_179138_g(OpenGlHelper.field_77476_b);
@@ -708,6 +745,9 @@ public final class Far {
         OpenGlHelper.func_77472_b(OpenGlHelper.field_77478_a);
         GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
         GL11.glEnableClientState(GL11.GL_COLOR_ARRAY);
+        if (shaders) {
+            ShaderPack.preChunkLayer(BlockRenderLayer.SOLID);
+        }
         try {
             for (int l = 0; l < OPAQUE_LAYERS; l++) {
                 if (l == 1) {
@@ -752,6 +792,9 @@ public final class Far {
                 }
             }
         } finally {
+            if (shaders) {
+                ShaderPack.postChunkLayer(BlockRenderLayer.SOLID);
+            }
             OpenGlHelper.func_176072_g(GL15.GL_ARRAY_BUFFER, 0);
             GL11.glDisableClientState(GL11.GL_COLOR_ARRAY);
             OpenGlHelper.func_77472_b(OpenGlHelper.field_77476_b);
@@ -773,7 +816,9 @@ public final class Far {
             GlStateManager.func_179128_n(GL11.GL_PROJECTION);
             GlStateManager.func_179121_F();
             GlStateManager.func_179128_n(GL11.GL_MODELVIEW);
-            GlStateManager.func_179086_m(GL11.GL_DEPTH_BUFFER_BIT);
+            if (!shaders) {
+                GlStateManager.func_179086_m(GL11.GL_DEPTH_BUFFER_BIT);
+            }
         }
     }
 
@@ -783,13 +828,23 @@ public final class Far {
         if (id <= 0) {
             return;
         }
+        if (en.stride != stride) {
+            // taken in the other vertex layout (a shader pack was switched on or off since): its bytes mean nothing here
+            return;
+        }
         OpenGlHelper.func_176072_g(GL15.GL_ARRAY_BUFFER, id);
-        GL11.glVertexPointer(3, GL11.GL_FLOAT, VS, 0L);
-        GL11.glColorPointer(4, GL11.GL_UNSIGNED_BYTE, VS, 12L);
-        GL11.glTexCoordPointer(2, GL11.GL_FLOAT, VS, 16L);
-        OpenGlHelper.func_77472_b(OpenGlHelper.field_77476_b);
-        GL11.glTexCoordPointer(2, GL11.GL_SHORT, VS, 24L);
-        OpenGlHelper.func_77472_b(OpenGlHelper.field_77478_a);
+        if (shaders) {
+            if (!ShaderPack.setupPointers()) {
+                return;
+            }
+        } else {
+            GL11.glVertexPointer(3, GL11.GL_FLOAT, VS, 0L);
+            GL11.glColorPointer(4, GL11.GL_UNSIGNED_BYTE, VS, 12L);
+            GL11.glTexCoordPointer(2, GL11.GL_FLOAT, VS, 16L);
+            OpenGlHelper.func_77472_b(OpenGlHelper.field_77476_b);
+            GL11.glTexCoordPointer(2, GL11.GL_SHORT, VS, 24L);
+            OpenGlHelper.func_77472_b(OpenGlHelper.field_77478_a);
+        }
         GlStateManager.func_179094_E();
         GlStateManager.func_179109_b((float) (en.x - camX), (float) (en.y - camY), (float) (en.z - camZ));
         GlStateManager.func_179109_b(-8.0f, -8.0f, -8.0f);
@@ -898,12 +953,39 @@ public final class Far {
         return 0L;
     }
 
-    /** Main thread: upload one layer read from disk into a new GPU buffer. */
+    /**
+     * Main thread: upload one layer read from disk into a new GPU buffer. The cache keeps the vanilla layout, so with a
+     * shader pack loaded the vertices get the pack's fields back first (VertexLayout).
+     */
     public static void uploadLayer(long key, int x, int y, int z, int layer, java.nio.ByteBuffer data, long geomTime) {
-        int size = data.remaining();
-        if (size < VS * 4 || bytes + size > budgetNow) {
+        int raw = data.remaining();
+        if (raw < VertexLayout.VANILLA * 4 || raw % (VertexLayout.VANILLA * 4) != 0) {
             return;
         }
+        java.nio.ByteBuffer grown = null;
+        java.nio.ByteBuffer use = data;
+        if (stride != VertexLayout.VANILLA) {
+            grown = VertexLayout.expand(data, stride);
+            if (grown == null) {
+                return;
+            }
+            use = grown;
+        }
+        try {
+            int size = use.remaining();
+            if (bytes + size > budgetNow) {
+                return;
+            }
+            uploadBuffer(key, x, y, z, layer, use, size, geomTime);
+        } finally {
+            if (grown != null) {
+                DirectPool.release(grown);
+            }
+        }
+    }
+
+    private static void uploadBuffer(long key, int x, int y, int z, int layer, java.nio.ByteBuffer data, int size,
+            long geomTime) {
         int id = GL15.glGenBuffers();
         OpenGlHelper.func_176072_g(GL15.GL_ARRAY_BUFFER, id);
         if (storage()) {
@@ -920,8 +1002,9 @@ public final class Far {
         } else {
             e.geomTime = Math.min(e.geomTime, geomTime);
         }
+        e.stride = stride;
         e.ids[layer] = id;
-        e.counts[layer] = size / VS;
+        e.counts[layer] = size / stride;
         e.hash[layer] = Disk.diskHash(key, layer);
         if (e.hash[layer] == 0L) {
             e.stale = true;
@@ -994,7 +1077,7 @@ public final class Far {
      */
     public static void onFog(Object entity, Object state, int mode, float farPlane) {
         int end = fogEnd;
-        if (!ENABLED || mode < 0 || end <= farPlane || ENTRIES.isEmpty()) {
+        if (!ENABLED || shaders || mode < 0 || end <= farPlane || ENTRIES.isEmpty()) {
             return;
         }
         try {
@@ -1029,7 +1112,8 @@ public final class Far {
     }
 
     public static String summary() {
-        return "far " + (ENABLED ? "ON" : "OFF") + ": sections " + ENTRIES.size() + ", VRAM "
+        return "far " + (ENABLED ? "ON" : "OFF") + (shaders ? " (shader pack, vertex " + stride + " bytes)" : "")
+            + ": sections " + ENTRIES.size() + ", VRAM "
             + String.format("%.1f MB", bytes / 1048576.0) + " of " + (budgetNow >> 20) + "/" + (BUDGET >> 20) + " MB (lowered " + budgetLowered + "x, immutable " + storage + ", vram free " + (availableVram() >> 20) + " MB, all VBOs live " + Capture.allLiveMb() + " MB), captures " + captures + " (buffers taken " + stolen + ", stale refreshed " + refreshed + "), reused " + reused + ", settling frames " + settling + ", hiding vanilla sections " + lastHidden + ", fog " + fogEnd + ", invalidated by server " + invalidated
             + ", drops " + drops + ", evictions " + evictions + ", from disk " + diskUploads + " | last frame drawn " + lastDrawn + " (translucent " + lastDrawnTranslucent + ")"
             + ", vanilla " + lastSkippedVanilla + ", culled " + lastCulled + ", errors " + errors;
