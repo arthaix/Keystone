@@ -24,6 +24,7 @@ import ru.arthaix.keystone.ltfix.LtFix;
  *   vfcompat       item icons of Immersive Vehicles packs VintageFix cannot read (client)
  *   ivlight        Immersive Vehicles signs and poles lit the same in every frame (client, with Immersive Vehicles)
  *   irfar          Immersive Railroading / UniversalModCore trains and rails visible to 1.5x render distance (both sides)
+ *   nogen          world generators of chosen mods skipped, -Dkeystone.nogen (both sides)
  *   Afterimage     far city copies and disk cache (client) and chunk change tracking (server); built from its own
  *                  repository and kept as its own mod "afterimage", because client and server recognise each other's
  *                  far-city sync by that mod id
@@ -36,7 +37,7 @@ import ru.arthaix.keystone.ltfix.LtFix;
      acceptableRemoteVersions = "*")
 public class Keystone {
     public static final String MODID = "keystone";
-    public static final String VERSION = "1.3.1";
+    public static final String VERSION = "1.3.2";
 
     private ChunkKeep chunkKeep;
 

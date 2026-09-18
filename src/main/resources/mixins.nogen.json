@@ -1,0 +1,12 @@
+{
+  "package": "ru.arthaix.keystone.nogen.mixin",
+  "minVersion": "0.8",
+  "compatibilityLevel": "JAVA_8",
+  "required": true,
+  "setSourceFile": true,
+  "mixins": [
+    "MixinGameRegistryWorldGen"
+  ],
+  "client": [],
+  "server": []
+}

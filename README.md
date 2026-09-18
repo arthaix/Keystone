@@ -96,6 +96,9 @@ for LittleTiles, Chisels & Bits, UniversalModCore and OnlinePictureFrame only wh
   (selection outlines, waypoint beams) left the cache wrong while they had something in view, and signs and poles
   flipped between shaded and flat bright as the camera moved. The GL state is now reset to match the cache before
   Immersive Vehicles draws.
+- **A mod's world generation can be switched off.** `-Dkeystone.nogen=morevegetation,othermod` skips the world
+  generators whose class name contains one of those names, so a mod stops scattering its plants or ores into new chunks
+  while everything already placed, and the blocks themselves, keep working. Empty by default.
 - **Immersive Railroading stays in sight.** A dedicated server sends entities to a player only within its
   view-distance (80 blocks at 6) and only in chunks the player watches, so trains vanished as soon as you moved away,
   and rails disappeared with their chunks. Trains and other UniversalModCore entities are now sent to each player up to
@@ -312,6 +315,7 @@ Everything works with the defaults; these are for tuning and for turning a part 
 | `ru.arthaix.keystone.opffix` | OnlinePictureFrame downloads |
 | `ru.arthaix.keystone.vfcompat` | item icons of Immersive Vehicles packs that VintageFix cannot read |
 | `ru.arthaix.keystone.irfar` | Immersive Railroading / UniversalModCore view range: entity tracking, far entities and kept tile entities |
+| `ru.arthaix.keystone.nogen` | world generators of chosen mods skipped |
 
 ## Building
 
