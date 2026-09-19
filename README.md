@@ -111,8 +111,12 @@ for LittleTiles, Chisels & Bits, UniversalModCore and OnlinePictureFrame only wh
   wherever it stands, so the map gave a whole city one colour that has nothing to do with it. Those blocks are now
   taken apart per map pixel: the block is divided into 16x16 columns, the highest tile or bit of each column gives its
   block state, and JourneyMap's own colours for those states are averaged, which is what the block looks like from
-  above. Anything unexpected falls back to JourneyMap's own colour. `-Dkeystone.jmcolor=false` turns it off; tiles
-  already drawn keep their old colours until the chunk is mapped again.
+  above. Immersive Railroading track is the same story with one more twist: its rails, sleepers and bed are a model,
+  so a railway was one colour tinted like grass by the biome - a green stripe across the map. A track block now takes
+  the colour of the bed it was laid on with the share its sleepers and rails cover, and snow on the track whitens it
+  (`-Dkeystone.jmcolor.railbed` 0.62, `-Dkeystone.jmcolor.railties` 0.28). Anything unexpected falls back to
+  JourneyMap's own colour. `-Dkeystone.jmcolor=false` turns it off; tiles already drawn keep their old colours until
+  the chunk is mapped again.
 
 ### Lag diagnostics
 
@@ -328,7 +332,7 @@ Everything works with the defaults; these are for tuning and for turning a part 
 | `ru.arthaix.keystone.vfcompat` | item icons of Immersive Vehicles packs that VintageFix cannot read |
 | `ru.arthaix.keystone.irfar` | Immersive Railroading / UniversalModCore view range: entity tracking, far entities and kept tile entities |
 | `ru.arthaix.keystone.nogen` | world generators of chosen mods skipped |
-| `ru.arthaix.keystone.jmcolor` | JourneyMap colours for LittleTiles and Chisels & Bits blocks |
+| `ru.arthaix.keystone.jmcolor` | JourneyMap colours for LittleTiles, Chisels & Bits and Immersive Railroading blocks |
 
 ## Building
 
