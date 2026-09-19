@@ -103,8 +103,9 @@ for LittleTiles, Chisels & Bits, UniversalModCore and OnlinePictureFrame only wh
   view-distance (80 blocks at 6) and only in chunks the player watches, so trains vanished as soon as you moved away,
   and rails disappeared with their chunks. Trains and other UniversalModCore entities are now sent to each player up to
   1.5x the render distance that player set (at most 1024 blocks), kept and animated where the client has no chunk and
-  drawn there at sky light. Rails and other UniversalModCore blocks of chunks the client unloads keep being drawn within
-  that range until the chunk is loaded again. `-Dirfar.factor` (1.5), `-Dirfar.maxBlocks` (1024), `-Dirfar.enabled=false`;
+  drawn there at sky light. Rails and other UniversalModCore blocks are drawn as far as the game draws their chunks
+  instead of Minecraft's 64 blocks for tile entities, which had track appearing piece by piece in front of the player,
+  and the ones in chunks the client unloads keep being drawn within that range until the chunk is loaded again. `-Dirfar.factor` (1.5), `-Dirfar.maxBlocks` (1024), `-Dirfar.enabled=false`;
   install Keystone on the server and the client.
 
 ### Lag diagnostics
