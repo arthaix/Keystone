@@ -38,6 +38,7 @@ public final class JmColor {
 
     static final String LITTLETILES = "littletiles";
     static final String CHISELS = "chiselsandbits";
+    static final String RAILROADING = "immersiverailroading";
 
     private static final Logger LOG = LogManager.getLogger("keystone");
 
@@ -64,6 +65,11 @@ public final class JmColor {
             if (Loader.isModLoaded(CHISELS)) {
                 classes.put(CHISELS, ChiseledColors.class);
                 handlers.put(CHISELS, new ChiseledColors());
+                added++;
+            }
+            if (Loader.isModLoaded(RAILROADING)) {
+                classes.put(RAILROADING, RailColors.class);
+                handlers.put(RAILROADING, new RailColors());
                 added++;
             }
             if (added > 0) {
@@ -98,8 +104,8 @@ public final class JmColor {
             String domain = md.getBlockDomain();
             if (domain != null) {
                 domain = domain.toLowerCase();
-                if (LITTLETILES.equals(domain) || CHISELS.equals(domain)) {
-                    // a block of parts inside a block of parts: no colour of its own to give
+                if (LITTLETILES.equals(domain) || CHISELS.equals(domain) || RAILROADING.equals(domain)) {
+                    // a block whose looks live in its tile entity: it has no colour of its own to give
                     return NO_COLOR;
                 }
             }
