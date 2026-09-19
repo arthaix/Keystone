@@ -46,16 +46,84 @@ public final class DeferredRemovalList<E> extends ArrayList<E> {
     private transient Reference2IntOpenHashMap<Object> pending;
     private transient int pendingCount;
 
+    /** The thread this list was first used from: Minecraft's world lists belong to one thread. */
+    private transient Thread owner;
+
+    /** Set once the recorded removals were lost: from then on every removal is applied at once. */
+    private transient boolean degraded;
+
+    private static boolean reportedForeign;
+    private static boolean reportedBroken;
+
     public DeferredRemovalList(Collection<? extends E> initial) {
         super(initial);
     }
 
+    /**
+     * Whether the recorded removals may be used now. They are a map on the side, and a mod touching the world's tile
+     * entity lists from its own thread can leave it half written (a crash in fastutil while the server ticks, seen
+     * 2026-09-19). Calls from another thread than the one the list belongs to take the plain list path instead, and the
+     * first such call is logged with its stack so the mod behind it can be found.
+     */
+    private boolean recording() {
+        if (this.degraded) {
+            return false;
+        }
+        Thread t = Thread.currentThread();
+        Thread o = this.owner;
+        if (o == null) {
+            this.owner = t;
+            return true;
+        }
+        if (o == t) {
+            return true;
+        }
+        if (!reportedForeign) {
+            reportedForeign = true;
+            org.apache.logging.log4j.LogManager.getLogger("keystone").warn(
+                    "[teunloadbatch] the tile entity list of " + o.getName() + " is used from " + t.getName()
+                            + "; batching is off for it from now on", new IllegalStateException("thread of the caller"));
+        }
+        this.degraded = true;
+        dropPendingSafely();
+        return false;
+    }
+
+    /** The recorded removals cannot be trusted any more: apply what can still be applied and stop recording. */
+    private void broken(Throwable t) {
+        this.degraded = true;
+        this.pending = null;
+        this.pendingCount = 0;
+        if (!reportedBroken) {
+            reportedBroken = true;
+            org.apache.logging.log4j.LogManager.getLogger("keystone").warn(
+                    "[teunloadbatch] the recorded removals were left broken, the list keeps working without them", t);
+        }
+    }
+
+    private void dropPendingSafely() {
+        try {
+            applyRemovals();
+        } catch (RuntimeException t) {
+            broken(t);
+        }
+    }
+
     /** remove(o) whose effect may be applied later; the return value of remove is not available. */
-    public void removeLater(Object o) {
-        if (o == null || OWN_EQUALS.get(o.getClass())) {
+    public synchronized void removeLater(Object o) {
+        if (o == null || OWN_EQUALS.get(o.getClass()) || !recording()) {
             remove(o);
             return;
         }
+        try {
+            record(o);
+        } catch (RuntimeException t) {
+            broken(t);
+            remove(o);
+        }
+    }
+
+    private void record(Object o) {
         Reference2IntOpenHashMap<Object> p = this.pending;
         if (p == null) {
             p = new Reference2IntOpenHashMap<Object>();
@@ -74,7 +142,7 @@ public final class DeferredRemovalList<E> extends ArrayList<E> {
         return this.pendingCount;
     }
 
-    private void applyRemovals() {
+    private synchronized void applyRemovals() {
         if (this.pendingCount == 0) {
             return;
         }
@@ -117,7 +185,7 @@ public final class DeferredRemovalList<E> extends ArrayList<E> {
         EditStats.tickablePassNanos += System.nanoTime() - t0;
     }
 
-    private void dropPending() {
+    private synchronized void dropPending() {
         if (this.pendingCount != 0) {
             this.pending = null;
             this.pendingCount = 0;
@@ -127,9 +195,13 @@ public final class DeferredRemovalList<E> extends ArrayList<E> {
     // ---------------- ArrayList, with recorded removals applied first ----------------
 
     @Override
-    public boolean add(E e) {
-        if (this.pendingCount != 0 && e != null && this.pending.containsKey(e)) {
-            applyRemovals();
+    public synchronized boolean add(E e) {
+        try {
+            if (this.pendingCount != 0 && e != null && this.pending != null && this.pending.containsKey(e)) {
+                applyRemovals();
+            }
+        } catch (RuntimeException t) {
+            broken(t);
         }
         return super.add(e);
     }
