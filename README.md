@@ -107,6 +107,12 @@ for LittleTiles, Chisels & Bits, UniversalModCore and OnlinePictureFrame only wh
   instead of Minecraft's 64 blocks for tile entities, which had track appearing piece by piece in front of the player,
   and the ones in chunks the client unloads keep being drawn within that range until the chunk is loaded again. `-Dirfar.factor` (1.5), `-Dirfar.maxBlocks` (1024), `-Dirfar.enabled=false`;
   install Keystone on the server and the client.
+- **JourneyMap shows what is built, not the block.** A LittleTiles or Chisels & Bits block is the same block state
+  wherever it stands, so the map gave a whole city one colour that has nothing to do with it. Those blocks are now
+  taken apart per map pixel: the block is divided into 16x16 columns, the highest tile or bit of each column gives its
+  block state, and JourneyMap's own colours for those states are averaged, which is what the block looks like from
+  above. Anything unexpected falls back to JourneyMap's own colour. `-Dkeystone.jmcolor=false` turns it off; tiles
+  already drawn keep their old colours until the chunk is mapped again.
 
 ### Lag diagnostics
 
@@ -322,6 +328,7 @@ Everything works with the defaults; these are for tuning and for turning a part 
 | `ru.arthaix.keystone.vfcompat` | item icons of Immersive Vehicles packs that VintageFix cannot read |
 | `ru.arthaix.keystone.irfar` | Immersive Railroading / UniversalModCore view range: entity tracking, far entities and kept tile entities |
 | `ru.arthaix.keystone.nogen` | world generators of chosen mods skipped |
+| `ru.arthaix.keystone.jmcolor` | JourneyMap colours for LittleTiles and Chisels & Bits blocks |
 
 ## Building
 
@@ -343,6 +350,7 @@ libs/CreativeCore_v1.10.61_mc1.12.2.jar
 libs/chiselsandbits-14.33.jar
 libs/UniversalModCore-1.12.2-forge-1.1.4-580823d.jar
 libs/OnlinePicFrame_v1.5.0-pre1_mc1.12.2.jar
+libs/journeymap_1.12.2_5.7.1.jar
 libs/log4j-core-2.17.1.jar                         tests only
 ```
 

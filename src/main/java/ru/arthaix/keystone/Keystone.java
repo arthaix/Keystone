@@ -25,6 +25,8 @@ import ru.arthaix.keystone.ltfix.LtFix;
  *   ivlight        Immersive Vehicles signs and poles lit the same in every frame (client, with Immersive Vehicles)
  *   irfar          Immersive Railroading / UniversalModCore trains and rails visible to 1.5x render distance (both sides)
  *   nogen          world generators of chosen mods skipped, -Dkeystone.nogen (both sides)
+ *   jmcolor        JourneyMap draws LittleTiles and Chisels & Bits blocks in the colours of what is inside them
+ *                  (client, with JourneyMap)
  *   Afterimage     far city copies and disk cache (client) and chunk change tracking (server); built from its own
  *                  repository and kept as its own mod "afterimage", because client and server recognise each other's
  *                  far-city sync by that mod id
@@ -33,11 +35,12 @@ import ru.arthaix.keystone.ltfix.LtFix;
  * This class runs the start-up work that the modules' own mod classes did (Afterimage keeps its mod class).
  */
 @Mod(modid = Keystone.MODID, name = "Keystone", version = Keystone.VERSION,
-     dependencies = "required-after:mixinbooter@[10.0,);after:littletiles;after:chiselsandbits;after:universalmodcore;after:opframe",
+     dependencies = "required-after:mixinbooter@[10.0,);after:littletiles;after:chiselsandbits;after:universalmodcore;"
+                    + "after:opframe;after:journeymap",
      acceptableRemoteVersions = "*")
 public class Keystone {
     public static final String MODID = "keystone";
-    public static final String VERSION = "1.3.4";
+    public static final String VERSION = "1.3.5";
 
     private ChunkKeep chunkKeep;
 
@@ -60,6 +63,14 @@ public class Keystone {
         if (event.getSide().isServer()) {
             this.chunkKeep = new ChunkKeep();
             this.chunkKeep.preInit(event);
+        }
+    }
+
+    @Mod.EventHandler
+    public void loadComplete(net.minecraftforge.fml.common.event.FMLLoadCompleteEvent event) {
+        if (net.minecraftforge.fml.common.FMLCommonHandler.instance().getSide().isClient()) {
+            // after JourneyMap's own set-up, before any world is mapped
+            ru.arthaix.keystone.jmcolor.JmColor.init();
         }
     }
 
