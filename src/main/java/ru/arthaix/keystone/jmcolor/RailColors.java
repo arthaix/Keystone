@@ -75,7 +75,7 @@ public class RailColors implements IModBlockHandler, IBlockColorProxy {
 
     /** 0 for anything that is not track, so the rest of Immersive Railroading keeps its own colours. */
     private static int color(ChunkMD chunkMD, BlockPos pos) {
-        if (JmColor.broken()) {
+        if (JmColor.broken("immersiverailroading")) {
             return 0;
         }
         try {

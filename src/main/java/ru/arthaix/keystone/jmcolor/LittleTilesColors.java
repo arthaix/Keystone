@@ -43,7 +43,7 @@ public class LittleTilesColors implements IModBlockHandler, IBlockColorProxy {
 
     /** 0 when there is nothing to take the colour from and JourneyMap should do what it always did. */
     private static int color(ChunkMD chunkMD, BlockPos pos) {
-        if (JmColor.broken()) {
+        if (JmColor.broken("littletiles")) {
             return 0;
         }
         try {
@@ -52,6 +52,10 @@ public class LittleTilesColors implements IModBlockHandler, IBlockColorProxy {
                 return 0;
             }
             TileEntityLittleTiles tiles = (TileEntityLittleTiles) te;
+            if (!tiles.hasLoaded()) {
+                // its tiles are still being read: asking now throws inside LittleTiles
+                return 0;
+            }
             LittleGridContext context = tiles.getContext();
             int grid = context == null ? 0 : context.size;
             if (grid <= 0) {

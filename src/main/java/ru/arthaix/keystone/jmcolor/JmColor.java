@@ -42,7 +42,17 @@ public final class JmColor {
 
     private static final Logger LOG = LogManager.getLogger("keystone");
 
-    private static boolean failed;
+    /**
+     * Failures are counted per kind of block, not for the module as a whole: what is asked here is live world data, and
+     * a tile entity that is still loading or a world being taken down can throw at any single block (LittleTiles threw
+     * a NullPointerException inside allTiles while a server was going down, 2026-09-19, and that switched every colour
+     * off for the rest of the session). One failed block only costs that block its colour; a kind is given up on after
+     * this many failures, and only that kind.
+     */
+    private static final int GIVE_UP_AFTER = Integer.getInteger("keystone.jmcolor.giveUpAfter", 512);
+
+    private static final java.util.concurrent.ConcurrentHashMap<String, int[]> FAILURES =
+            new java.util.concurrent.ConcurrentHashMap<String, int[]>();
 
     private JmColor() {
     }
@@ -112,7 +122,7 @@ public final class JmColor {
             int color = md.getBlockColor(chunkMD, pos);
             return color == 0 ? NO_COLOR : color;
         } catch (Throwable t) {
-            fail("color", t);
+            fail("state colour", t);
             return NO_COLOR;
         }
     }
@@ -130,14 +140,26 @@ public final class JmColor {
         }
     }
 
-    static boolean broken() {
-        return failed;
+    /** True once that kind of block has failed so often that it is left to JourneyMap. */
+    static boolean broken(String kind) {
+        int[] count = FAILURES.get(kind);
+        return count != null && count[0] >= GIVE_UP_AFTER;
     }
 
-    static void fail(String what, Throwable t) {
-        if (!failed) {
-            failed = true;
-            LOG.warn("[jmcolor] " + what + " failed, JourneyMap keeps its own colours", t);
+    static void fail(String kind, Throwable t) {
+        int[] count = FAILURES.get(kind);
+        if (count == null) {
+            count = new int[1];
+            int[] raced = FAILURES.putIfAbsent(kind, count);
+            if (raced != null) {
+                count = raced;
+            }
+        }
+        int n = ++count[0];
+        if (n == 1) {
+            LOG.warn("[jmcolor] " + kind + ": no colour for one block, JourneyMap's own is used there", t);
+        } else if (n == GIVE_UP_AFTER) {
+            LOG.warn("[jmcolor] " + kind + " failed " + n + " times, it is left to JourneyMap from now on");
         }
     }
 }

@@ -40,7 +40,7 @@ public class ChiseledColors implements IModBlockHandler, IBlockColorProxy {
 
     /** 0 when there is nothing to take the colour from and JourneyMap should do what it always did. */
     private static int color(ChunkMD chunkMD, BlockPos pos) {
-        if (JmColor.broken()) {
+        if (JmColor.broken("chiselsandbits")) {
             return 0;
         }
         try {
