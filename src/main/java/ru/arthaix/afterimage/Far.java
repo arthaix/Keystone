@@ -640,10 +640,17 @@ public final class Far {
         if (!(near > 0.0) || !(far > near)) {
             return;
         }
-        double newNear = Math.max(near, FAR_NEAR);
-        double newFar = Math.max(far, FAR_PLANE);
-        PROJ[10] = (float) (-(newFar + newNear) / (newFar - newNear));
-        PROJ[14] = (float) (-2.0 * newFar * newNear / (newFar - newNear));
+        if (!shaders) {
+            // Without a pack the copies are drawn with a far plane of their own, and the depth they write is cleared
+            // again before vanilla draws. A pack reads that depth in its later passes to find where a pixel is in the
+            // world (fog, shadows, lighting), so with one loaded the copies keep the game's own projection: they are
+            // then cut off at the game's far plane, which is well past the pack's fog anyway, and everything they draw
+            // is lit like the terrain in front of it. Copies further out than that simply do not appear.
+            double newNear = Math.max(near, FAR_NEAR);
+            double newFar = Math.max(far, FAR_PLANE);
+            PROJ[10] = (float) (-(newFar + newNear) / (newFar - newNear));
+            PROJ[14] = (float) (-2.0 * newFar * newNear / (newFar - newNear));
+        }
         multiply(PROJ, MV, CLIP);
         extractPlanes(CLIP);
 

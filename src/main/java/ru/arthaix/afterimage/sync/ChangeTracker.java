@@ -42,6 +42,9 @@ public final class ChangeTracker {
     private static final Set<Integer> DIRTY = new HashSet<Integer>();
     private static int loadDepth;
     private static File dir;
+    private static File saveRoot;
+    private static long lastSnapshot;
+    private static long offlineChunks;
     private static String worldId;
     private static long recorded;
     private static long ignoredLoading;
@@ -95,8 +98,73 @@ public final class ChangeTracker {
                 }
             }
         }
+        ChangeTracker.saveRoot = saveRoot;
+        offlineEdits(saveRoot, d);
         System.out.println("[afterimage] tracking chunk changes in " + d + ", world id " + worldId + ", " + total()
             + " changed chunks on record");
+    }
+
+    /**
+     * Chunks written while the server was down (a script that edits the world, a world copied in) are recorded as
+     * changed now, so clients drop the far copies they still hold of them. See RegionWatch.
+     */
+    private static void offlineEdits(File root, File d) {
+        try {
+            File snapshot = new File(d, "regions.bin");
+            Map<Integer, java.util.List<Long>> edits = RegionWatch.offlineEdits(root, snapshot);
+            long now = worldTime();
+            long count = 0;
+            for (Map.Entry<Integer, java.util.List<Long>> e : edits.entrySet()) {
+                int dim = e.getKey();
+                Long2LongOpenHashMap ch = map(CHANGES, dim);
+                for (Long key : e.getValue()) {
+                    ch.put(key.longValue(), now);
+                    count++;
+                }
+                if (!e.getValue().isEmpty()) {
+                    DIRTY.add(dim);
+                }
+            }
+            offlineChunks = count;
+            if (count > 0) {
+                System.out.println("[afterimage] " + count + " chunks were written while the server was down; "
+                        + "clients drop their far copies of them");
+                save();
+            }
+            RegionWatch.write(root, snapshot);
+            lastSnapshot = now;
+        } catch (Throwable t) {
+            System.out.println("[afterimage] could not check the world files for edits made while down: " + t);
+        }
+    }
+
+    /** Overworld time, 0 before the world is there. */
+    private static long worldTime() {
+        try {
+            World w = net.minecraftforge.common.DimensionManager.getWorld(0);
+            return w == null ? 0L : w.func_82737_E();
+        } catch (Throwable t) {
+            return 0L;
+        }
+    }
+
+    /** Server thread, every few minutes: what the files look like now, so the next start only sees outside edits. */
+    private static void refreshSnapshot(long now) {
+        final File root = saveRoot;
+        final File d = dir;
+        if (root == null || d == null || now - lastSnapshot < 6000L) {
+            return;
+        }
+        lastSnapshot = now;
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                RegionWatch.write(root, new File(d, "regions.bin"));
+            }
+        }, "afterimage-regions");
+        t.setDaemon(true);
+        t.setPriority(Thread.MIN_PRIORITY);
+        t.start();
     }
 
     public static synchronized void stop() {
@@ -104,10 +172,14 @@ public final class ChangeTracker {
             return;
         }
         save();
+        if (saveRoot != null) {
+            RegionWatch.write(saveRoot, new File(dir, "regions.bin"));
+        }
         System.out.println("[afterimage] " + summary());
         CHANGES.clear();
         PENDING.clear();
         LOADED_AT.clear();
+        saveRoot = null;
         DIRTY.clear();
         loadDepth = 0;
         dir = null;
@@ -203,6 +275,7 @@ public final class ChangeTracker {
 
     /** Forget load times older than the grace period. */
     public static synchronized void prune(long now) {
+        refreshSnapshot(now);
         for (Long2LongOpenHashMap m : LOADED_AT.values()) {
             for (LongIterator it = m.keySet().iterator(); it.hasNext();) {
                 long k = it.nextLong();
