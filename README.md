@@ -96,6 +96,11 @@ for LittleTiles, Chisels & Bits, UniversalModCore and OnlinePictureFrame only wh
   (selection outlines, waypoint beams) left the cache wrong while they had something in view, and signs and poles
   flipped between shaded and flat bright as the camera moved. The GL state is now reset to match the cache before
   Immersive Vehicles draws.
+- **Immersive Vehicles signs at any angle.** A sign, traffic signal or street light put on a pole faces the player who
+  puts it there, turned to the whole degree, instead of one of the pole's four sides. Within 7 degrees of a multiple of
+  45 it snaps to that angle. The angle is saved with the component; components placed before keep their side. Needs
+  Keystone on the server and on the clients (a client without it shows the component on its side of the pole). Two
+  components still cannot share a side of the pole: the side is the one nearest to the angle.
 - **A mod's world generation can be switched off.** `-Dkeystone.nogen=morevegetation,othermod` skips the world
   generators whose class name contains one of those names, so a mod stops scattering its plants or ores into new chunks
   while everything already placed, and the blocks themselves, keep working. Empty by default.
@@ -249,6 +254,7 @@ Everything works with the defaults; these are for tuning and for turning a part 
 | `-Dchunkkeep.packetBytes` | 1900000 | uncompressed size above which a chunk packet is split |
 | `-Dchunkkeep.backlogMB` | 12 | chunk packet bytes queued to a player's connection above which chunk sending waits (a keep-alive stuck behind them timed players out) |
 | `-Dchunkkeep.fastDeflateKB` | 256 | packets at least this big are compressed at zlib level 1 instead of 6 |
+| `-Dkeystone.signsnap` | 7 | degrees within which a sign put on an Immersive Vehicles pole snaps to a multiple of 45 (0 = never) |
 | `-Dchunkkeep.fullResendMs` | 1500 | least time between two whole-chunk re-sends of a chunk with many changed blocks (large edits changed the same chunks every tick) |
 
 ### Client
@@ -332,6 +338,7 @@ Everything works with the defaults; these are for tuning and for turning a part 
 | `ru.arthaix.keystone.vfcompat` | item icons of Immersive Vehicles packs that VintageFix cannot read |
 | `ru.arthaix.keystone.irfar` | Immersive Railroading / UniversalModCore view range: entity tracking, far entities and kept tile entities |
 | `ru.arthaix.keystone.nogen` | world generators of chosen mods skipped |
+| `ru.arthaix.keystone.ivsign` | Immersive Vehicles pole components at any angle |
 | `ru.arthaix.keystone.jmcolor` | JourneyMap colours for LittleTiles, Chisels & Bits and Immersive Railroading blocks |
 
 ## Building
@@ -355,6 +362,7 @@ libs/chiselsandbits-14.33.jar
 libs/UniversalModCore-1.12.2-forge-1.1.4-580823d.jar
 libs/OnlinePicFrame_v1.5.0-pre1_mc1.12.2.jar
 libs/journeymap_1.12.2_5.7.1.jar
+libs/ImmersiveVehicles-1.12.2-22.5.0.jar
 libs/log4j-core-2.17.1.jar                         tests only
 ```
 

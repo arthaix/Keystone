@@ -1,0 +1,8 @@
+{
+  "package": "ru.arthaix.keystone.ivsign.mixin",
+  "minVersion": "0.8",
+  "compatibilityLevel": "JAVA_8",
+  "required": false,
+  "setSourceFile": true,
+  "mixins": [ "AccessorDefinable", "MixinTileEntityPole" ]
+}

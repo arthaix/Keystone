@@ -25,6 +25,7 @@ public class KeystoneLateLoader implements ILateMixinLoader {
         { "mixins.irfarumc.json", "universalmodcore" },
         { "mixins.opffix.json", "opframe" },
         { "mixins.ivlight.json", "mts" },
+        { "mixins.ivsign.json", "mts" },
     };
 
     @Override

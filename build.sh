@@ -14,7 +14,7 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) SEP=";" ;; esac
 JARS="mixinbooter-10.7.jar forge-1.12.2-srg.jar forge-1.12.2-dev.jar forge-1.12.2-universal.jar
       LittleTiles_v1.5.14_mc1.12.2.jar CreativeCore_v1.10.61_mc1.12.2.jar chiselsandbits-14.33.jar
       UniversalModCore-1.12.2-forge-1.1.4-580823d.jar OnlinePicFrame_v1.5.0-pre1_mc1.12.2.jar log4j-api-2.17.1.jar
-      journeymap_1.12.2_5.7.1.jar ImmersiveRailroading-1.12.2-forge-1.9.1-93aac40.jar
+      journeymap_1.12.2_5.7.1.jar ImmersiveVehicles-1.12.2-22.5.0.jar ImmersiveRailroading-1.12.2-forge-1.9.1-93aac40.jar
       lwjgl-2.9.4.jar netty-all-4.1.9.Final.jar fastutil-7.1.0.jar guava-21.0.jar"
 CP=""
 for jar in $JARS; do
