@@ -27,6 +27,7 @@ import ru.arthaix.keystone.ltfix.LtFix;
  *   nogen          world generators of chosen mods skipped, -Dkeystone.nogen (both sides)
  *   jmcolor        JourneyMap draws LittleTiles, Chisels & Bits and Immersive Railroading track in the colours of
  *                  what is inside them (client, with JourneyMap)
+ *   maplive        players' positions once a second to maplive/players.json for the web map (dedicated server)
  *   Afterimage     far city copies and disk cache (client) and chunk change tracking (server); built from its own
  *                  repository and kept as its own mod "afterimage", because client and server recognise each other's
  *                  far-city sync by that mod id
@@ -40,9 +41,10 @@ import ru.arthaix.keystone.ltfix.LtFix;
      acceptableRemoteVersions = "*")
 public class Keystone {
     public static final String MODID = "keystone";
-    public static final String VERSION = "1.3.11";
+    public static final String VERSION = "1.3.12";
 
     private ChunkKeep chunkKeep;
+    private ru.arthaix.keystone.maplive.MapLive mapLive;
 
     @Mod.EventHandler
     public void construct(FMLConstructionEvent event) {
@@ -63,6 +65,11 @@ public class Keystone {
         if (event.getSide().isServer()) {
             this.chunkKeep = new ChunkKeep();
             this.chunkKeep.preInit(event);
+            if (ru.arthaix.keystone.maplive.MapLive.ENABLED) {
+                // config/ lies in the server's own folder: the file goes next to it, where the web map reads it
+                this.mapLive = new ru.arthaix.keystone.maplive.MapLive(event.getModConfigurationDirectory().getParentFile());
+                net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(this.mapLive);
+            }
         }
     }
 
@@ -85,6 +92,9 @@ public class Keystone {
     public void serverStopping(FMLServerStoppingEvent event) {
         if (this.chunkKeep != null) {
             this.chunkKeep.serverStopping(event);
+        }
+        if (this.mapLive != null) {
+            this.mapLive.stop();
         }
     }
 }

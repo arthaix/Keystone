@@ -19,7 +19,7 @@ done
 rm -rf build/test
 mkdir -p build/test
 "$JDK/bin/javac" -proc:none -source 8 -target 8 -encoding UTF-8 -nowarn -cp "$CP" -d build/test src/test/java/*.java
-for t in DeferredRemovalListTest NeighborDedupTest NbtGroupsTest GeometryPackerTest NbtSizeTest PackIconSpritesTest VertexLayoutTest SignAngleTest; do
+for t in DeferredRemovalListTest NeighborDedupTest NbtGroupsTest GeometryPackerTest NbtSizeTest PackIconSpritesTest VertexLayoutTest SignAngleTest MapLiveJsonTest; do
     echo "== $t"
     "$JDK/bin/java" -Xmx3g -cp "build/test${SEP}$CP" "$t"
 done
